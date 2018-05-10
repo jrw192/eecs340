@@ -10,30 +10,33 @@ class DNSProxy:
 		print "starting dns proxy"
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		try:
-			sock.bind(("", self.port))
-			print("socket created.")
+			sock.bind(("0.0.0.0", self.port))
+			print "socket created."
 		except:
 			print "socket failed to be created. error: ", socket.error
 
 		upstreamSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		try:
 			upstreamSock.connect(self.upstreamAddr)
+			print "upstreamSock connected."
 		except:
 			print "upstreamSock could not connect. error: ", socket.error
 
 		while True:
-			data, addr = sock.recvfrom(4096)
-			if not datagram:
+			print "waiting to receive message"
+			data, address = sock.recvfrom(4096)
+			print "received ", len(data), " bytes from ", address
+			if not data:
 				print "failed to get data"
 				break
 			#we got something! so we want to send it to the upstream DNS resolver
+			print "addr: ", address, " data length: ", len(data)
 			print "we got something"
 			sent = upstreamSock.send(data)
 			#wait for a response
 			respData, respAddr = upstreamSock.recvfrom(4096)
 			if respData:
-				sent = sock.send(respData)
-				sentBack = sock.sendto(respData, addr)
+				sent = upstreamSock.sendto(respData, address)
 
 
 if  __name__ =='__main__':  
