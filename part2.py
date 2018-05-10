@@ -31,7 +31,7 @@ class DNSProxy:
 			sent = upstreamSock.send(data)
 			#wait for a response
 			respData, respAddr = upstreamSock.recvfrom(4096)
-			if response:
+			if respData:
 				sent = sock.send(respData)
 				sentBack = sock.sendto(respData, addr)
 
