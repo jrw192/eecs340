@@ -4,7 +4,7 @@ import sys
 class DNSProxy:
 	def __init__(self):
 		self.port = 53
-		self.upstreamAddr = ('8.8.8.8', 8000)
+		self.upstreamAddr = ('8.8.8.8', 53)
 
 	def dns_proxy(self):
 		print "starting dns proxy"
@@ -33,10 +33,14 @@ class DNSProxy:
 			print "addr: ", address, " data length: ", len(data)
 			print "we got something"
 			sent = upstreamSock.send(data)
-			#wait for a response
+			print "sent: ", sent
+                        print "wait for a response from upstream"
 			respData, respAddr = upstreamSock.recvfrom(4096)
+                        print "we got our response data, response length: ", len(respData)
 			if respData:
-				sent = upstreamSock.sendto(respData, address)
+                                print "sending data back"
+                                sent = sock.sendto(respData, address)
+				#sent = upstreamSock.sendto(respData, address)
 
 
 if  __name__ =='__main__':  
