@@ -21,34 +21,31 @@ class DNSProxy:
 		self.sockTCP.listen(1)
 		self.upstreamSockTCP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.upstreamSockTCP.connect(self.upstreamAddr)
-		self.upstreamSockTCP.listen(1)
+		#self.upstreamSockTCP.listen(1)
 
 
 		while True:
 			print "waiting to receive message"
+
+			#try udp
 			data, address = self.sockUDP.recvfrom(4096)
+			if data:
+				print "processing UDP"
+				self.UDP(data, address)
 
-			if not data:
-				#probably TCP then
-				print "processing TCP"
-				connSocket, address = self.sockTCP.accept()
-				data, address = connSocket.recvfrom(4096)
-				if data:
-					TCP(self, data, address)
-				if not data:
-					print "bad request"
-					break
-			elif data:
-				print "processing TCP"
-				UDP(self, data, address)
 
+			#try tcp
+			connSocket, address = self.sockTCP.accept()
+			data, address = connSocket.recvfrom(4096)
+			if data:
+				print "processing TCP"
+				self.TCP(data, address)
 
 	def UDP(self, data, address):
 		print "received ", len(data), " bytes from ", address
 		print "addr: ", address, " data length: ", len(data)
 		
-		sent = self.upstreamSockUDP.send(data)
-		print "sent: ", sent
+		self.upstreamSockUDP.send(data)
 		print "wait for a response from upstream"
 		respData, respAddr = self.upstreamSockUDP.recvfrom(4096)
 		print "we got our response data, response length: ", len(respData)
@@ -56,11 +53,21 @@ class DNSProxy:
 			print "sending data back"
 			sent = self.sockUDP.sendto(respData, address)
 
-	def TCP(self, data, address)
+	def TCP(self, data, address):
 		print "received ", len(data), " bytes from ", address
 		print "addr: ", address, " data length: ", len(data)
 
-		
+		self.upstreamSockTCP.send(data)
+		upstreamConnSock, address = self.upstreamSockTCP.accept()
+		respData, respAddr = upstreamConnSock.recvfrom(4096)
+		#print "we got our response data, response length: ", len(respData)
+		if respData:
+			print "sending response data back"
+			self.sockTCP.sendto(respData, address)
+
+
+
+
 
 if  __name__ =='__main__':  
 	p = DNSProxy()
