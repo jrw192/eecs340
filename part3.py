@@ -1,70 +1,72 @@
-import socket
-import sys
+import socket, sys, select, Queue
 
 class DNSProxy:
 	def __init__(self):
 		self.port = 53
 		self.upstreamAddr = ('8.8.8.8', 53)
-		self.sockUDP = None
-		self.upstreamSockUDP = None
-		self.sockTCP = None
-		self.upstreamSockTCP = None
 
 	def dns_proxy(self):
-		self.sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self.sockUDP.bind(("0.0.0.0", self.port))
-		self.upstreamSockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self.upstreamSockUDP.connect(self.upstreamAddr)
+		sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		sockUDP.bind(("0.0.0.0", self.port))
+	
+		sockTCP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sockTCP.bind(("0.0.0.0", self.port))
+		sockTCP.listen(5)
+		inputs = [ sockUDP, sockTCP ]
+		outputs = [ ] #we don't actually need this, just placeholder
 
-		self.sockTCP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.sockTCP.bind(("0.0.0.0", self.port))
-		self.sockTCP.listen(1)
-		self.upstreamSockTCP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.upstreamSockTCP.connect(self.upstreamAddr)
-		#self.upstreamSockTCP.listen(1)
+		while inputs:
+			readable, writable, exceptional = select.select(inputs, outputs, inputs)
+			for s in readable:
+				if s is sockUDP:
+					print "using udp to listen"
+					self.UDP(s)
+					print "DONE"
+				elif s is sockTCP:
+					print "using tcp to listen"
+					self.TCP(s)
+					print "DONE"
 
 
-		while True:
-			print "waiting to receive message"
+	def UDP(self, sockUDP):
+		data, address = sockUDP.recvfrom(4096)
+		if data:
+			print "received ", len(data), " bytes from ", address
+			print "addr: ", address, " data length: ", len(data)
+			
+			upstreamSockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+			upstreamSockUDP.connect(self.upstreamAddr)
 
-			#try udp
-			data, address = self.sockUDP.recvfrom(4096)
-			if data:
-				print "processing UDP"
-				self.UDP(data, address)
+			upstreamSockUDP.send(data)
+			print "wait for a response from upstream"
+			respData, respAddr = upstreamSockUDP.recvfrom(4096)
+			print "we got our response data, response length: ", len(respData)
+			if respData:
+				print "sending data back"
+				sent = sockUDP.sendto(respData, address)
+			upstreamSockUDP.close()
 
+	def TCP(self, sockTCP):
 
-			#try tcp
-			connSocket, address = self.sockTCP.accept()
-			data, address = connSocket.recvfrom(4096)
-			if data:
-				print "processing TCP"
-				self.TCP(data, address)
+		connSocket, address = sockTCP.accept()
+		data, __ = connSocket.recvfrom(4096)
+		if data:
+			print "received ", len(data), " bytes from ", address
 
-	def UDP(self, data, address):
-		print "received ", len(data), " bytes from ", address
-		print "addr: ", address, " data length: ", len(data)
-		
-		self.upstreamSockUDP.send(data)
-		print "wait for a response from upstream"
-		respData, respAddr = self.upstreamSockUDP.recvfrom(4096)
-		print "we got our response data, response length: ", len(respData)
-		if respData:
-			print "sending data back"
-			sent = self.sockUDP.sendto(respData, address)
+			upstreamSockTCP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			try:
+				upstreamSockTCP.connect(self.upstreamAddr)
+				print "connected upstreamSockTCP"
+			except:
+				print "upstreamSockTCP failed to connect. error: ", socket.error
 
-	def TCP(self, data, address):
-		print "received ", len(data), " bytes from ", address
-		print "addr: ", address, " data length: ", len(data)
-
-		self.upstreamSockTCP.send(data)
-		upstreamConnSock, address = self.upstreamSockTCP.accept()
-		respData, respAddr = upstreamConnSock.recvfrom(4096)
-		#print "we got our response data, response length: ", len(respData)
-		if respData:
-			print "sending response data back"
-			self.sockTCP.sendto(respData, address)
-
+			upstreamSockTCP.send(data)
+			respData, respAddr = upstreamSockTCP.recvfrom(4096)
+			print "we got our response data, response length: ", len(respData)
+			if respData:
+				print "sending response data back"
+				sockTCP.sendto(respData, address)
+			upstreamSockTCP.close()
 
 
 
