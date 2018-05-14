@@ -77,7 +77,7 @@ class DNSProxy:
 			print "we got our response data, response length: ", len(respData)
 			if respData:
 				print "sending response data back"
-				sockTCP.sendto(respData, address)
+				connSocket.sendto(respData, address)
 			upstreamSockTCP.close()
 
 	def getResponseCode(self, respData):
@@ -121,7 +121,7 @@ class DNSProxy:
 		identification = self.bitsToHex(idArr)
 		numQs = "0001"
 		numAns = "0001"
-		nAuth = "0001"
+		nAuth = "0000"
 		nAdditional = "0000"
 
 		respBits = self.hexToBits(respData)
@@ -135,14 +135,14 @@ class DNSProxy:
 		header = identification + flags + numQs + numAns + nAuth + nAdditional
 
 		#request header is 12 bytes -> 96 bits, so we just want the rest of it
-		question = data[12:]
+		question = dataBits[12:]
 
 		myHostname = socket.gethostname()
 		myAddr = socket.gethostbyname(myHostname)
 		dotlessAddr = myAddr.split(".")
 		myAddrHex = self.bitsToHex(dotlessAddr)
 		rLength = '0004'
-		TTL = "64"
+		TTL = "00000064"
 
 		response = header + question + TTL + rLength + myAddrHex
 		return response
