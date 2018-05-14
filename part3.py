@@ -21,18 +21,18 @@ class DNSProxy:
 				if s is sockUDP:
 					print "using udp to listen"
 					self.UDP(s)
-					print "DONE"
+					print "--------DONE--------"
 				elif s is sockTCP:
 					print "using tcp to listen"
 					self.TCP(s)
-					print "DONE"
+					print "--------DONE--------"
 
 
 	def UDP(self, sockUDP):
 		data, address = sockUDP.recvfrom(4096)
 		if data:
-			print "received ", len(data), " bytes from ", address
-			print "addr: ", address, " data length: ", len(data)
+			print "UDP received ", len(data), " bytes from ", address
+			#print "addr: ", address, " data length: ", len(data)
 			
 			upstreamSockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 			upstreamSockUDP.connect(self.upstreamAddr)
@@ -40,7 +40,7 @@ class DNSProxy:
 			upstreamSockUDP.send(data)
 			print "wait for a response from upstream"
 			respData, respAddr = upstreamSockUDP.recvfrom(4096)
-			print "we got our response data, response length: ", len(respData)
+			print "UDP we got our response data, response length: ", len(respData)
 			if respData:
 				print "sending data back"
 				sent = sockUDP.sendto(respData, address)
@@ -51,7 +51,7 @@ class DNSProxy:
 		connSocket, address = sockTCP.accept()
 		data, __ = connSocket.recvfrom(4096)
 		if data:
-			print "received ", len(data), " bytes from ", address
+			print "TCP received ", len(data), " bytes from ", address
 
 			upstreamSockTCP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			try:
@@ -62,10 +62,10 @@ class DNSProxy:
 
 			upstreamSockTCP.send(data)
 			respData, respAddr = upstreamSockTCP.recvfrom(4096)
-			print "we got our response data, response length: ", len(respData)
+			print "TCP we got our response data, response length: ", len(respData)
 			if respData:
 				print "sending response data back"
-				sockTCP.sendto(respData, address)
+				connSocket.sendto(respData, address)
 			upstreamSockTCP.close()
 
 
