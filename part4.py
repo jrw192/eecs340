@@ -114,39 +114,37 @@ class DNSProxy:
 	    return ''.join(result)
 
 	def createResponse(self, respData, data):
-		'''
-		bitsArray = self.hexToBits(data)
-		header = []
-		for x in range(0, 96):
-			header.append(bitsArray[x])
-		header[0] = 1
-		for x in range(12, 16):
-			header[x] = 0
-		headerHex = self.bitsToHex(header)
-		'''
-		bitsArray = self.hexToBits(respData)
-		header = []
-		for x in range(0, 96):
-			header.append(bitsArray[x])
-		for x in range(17+16+1-3, 17+16+1):
-			header[x] = 0
-		headerHex = self.bitsToHex(header)
+		dataBits = self.hexToBits(data)
+		idArr = []
+		for x in range(0, 16):
+			idArr.append(dataBits[x])
+		identification = self.bitsToHex(idArr)
+		numQs = "0001"
+		numAns = "0001"
+		nAuth = "0001"
+		nAdditional = "0000"
+
+		respBits = self.hexToBits(respData)
+		flagsArr = []
+		for x in range(16, 32):
+			flagsArr.append(respBits[x])
+		for x in range(len(flagsArr)-3, len(flagsArr)):
+			flagsArr[x] = 0
+		flags = self.bitsToHex(flagsArr)
+
+		header = identification + flags + numQs + numAns + nAuth + nAdditional
 
 		#request header is 12 bytes -> 96 bits, so we just want the rest of it
-		nameField = data[12:]
-
-		
-		rType = self.bitsToHex('00000001')
-		rClass = self.bitsToHex('00000001')
-		TTL = self.bitsToHex('1000')
+		question = data[12:]
 
 		myHostname = socket.gethostname()
 		myAddr = socket.gethostbyname(myHostname)
 		dotlessAddr = myAddr.split(".")
 		myAddrHex = self.bitsToHex(dotlessAddr)
 		rLength = '0004'
+		TTL = "64"
 
-		response = headerHex + nameField + rType + rClass + TTL + rLength + myAddrHex
+		response = header + question + TTL + rLength + myAddrHex
 		return response
 
 if  __name__ =='__main__':  
