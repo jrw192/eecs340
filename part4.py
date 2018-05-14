@@ -42,22 +42,19 @@ class DNSProxy:
 			respData, respAddr = upstreamSockUDP.recvfrom(4096)
 			#print "we got our response data, response length: ", len(respData)
 			if respData:
-				#print "*******respData bit version********"
-				#print self.hexToBits(respData)
-				#print "***********************"
-				#print "bits data length: ", len(self.hexToBits(respData))
-				#print "******************respData: "
-				#print str(respData)
-				#print "*****************************"
+				print "*******respData********"
+				print respData
+				print "***********************"
+
 				if self.getResponseCode(respData) is 0:
 					print "sending data back"
 					sent = sockUDP.sendto(respData, address)
 				elif self.getResponseCode(respData) is 3:
-					print "u fucked up"
-					response = self.createResponse(respData)
+					response = self.createResponse(respData, data)
 					print "************NEW RESPONSE: ***************"
 					print response
 					print "******************************************"
+					print "new response length: ", len(response)
 					sent = sockUDP.sendto(response, address)
 			upstreamSockUDP.close()
 
@@ -116,27 +113,41 @@ class DNSProxy:
 	        result.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
 	    return ''.join(result)
 
-	def createResponse(self, respData):
+	def createResponse(self, respData, data):
+		'''
+		bitsArray = self.hexToBits(data)
+		header = []
+		for x in range(0, 96):
+			header.append(bitsArray[x])
+		header[0] = 1
+		for x in range(12, 16):
+			header[x] = 0
+		headerHex = self.bitsToHex(header)
+		'''
 		bitsArray = self.hexToBits(respData)
 		header = []
-		for x in range(0, 32):
+		for x in range(0, 96):
 			header.append(bitsArray[x])
-		for x in range(28, 32):
-			#first fix the response code
+		for x in range(17+16+1-3, 17+16+1):
 			header[x] = 0
 		headerHex = self.bitsToHex(header)
 
+		#request header is 12 bytes -> 96 bits, so we just want the rest of it
+		nameField = data[12:]
+
+		
+		rType = self.bitsToHex('00000001')
+		rClass = self.bitsToHex('00000001')
+		TTL = self.bitsToHex('1000')
+
 		myHostname = socket.gethostname()
 		myAddr = socket.gethostbyname(myHostname)
-		print "my ip address is: ", myAddr
 		dotlessAddr = myAddr.split(".")
-		myAddrHex = '{:02X}{:02X}{:02X}{:02X}'.format(*map(int, dotlessAddr))
-		print "myAddrHex: ", myAddrHex 
-		response = headerHex + myAddrHex
+		myAddrHex = self.bitsToHex(dotlessAddr)
+		rLength = '0004'
+
+		response = headerHex + nameField + rType + rClass + TTL + rLength + myAddrHex
 		return response
-
-
-
 
 if  __name__ =='__main__':  
 	p = DNSProxy()
