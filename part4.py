@@ -43,15 +43,22 @@ class DNSProxy:
 			#print "we got our response data, response length: ", len(respData)
 			if respData:
 				#print "*******respData bit version********"
-				#print self.toBits(respData)
+				#print self.hexToBits(respData)
 				#print "***********************"
-				#print "bits data length: ", len(self.toBits(respData))
-				print "******************respData: "
-				print str(respData)
-				print "*****************************"
-
-				print "sending data back"
-				sent = sockUDP.sendto(respData, address)
+				#print "bits data length: ", len(self.hexToBits(respData))
+				#print "******************respData: "
+				#print str(respData)
+				#print "*****************************"
+				if self.getResponseCode(respData) is 0:
+					print "sending data back"
+					sent = sockUDP.sendto(respData, address)
+				elif self.getResponseCode(respData) is 3:
+					print "u fucked up"
+					response = self.createResponse(respData)
+					print "************NEW RESPONSE: ***************"
+					print response
+					print "******************************************"
+					sent = sockUDP.sendto(response, address)
 			upstreamSockUDP.close()
 
 	def TCP(self, sockTCP):
@@ -76,38 +83,25 @@ class DNSProxy:
 				sockTCP.sendto(respData, address)
 			upstreamSockTCP.close()
 
-	def parseResponse(self, type, respData):
+	def getResponseCode(self, respData):
 		#first 14 bytes is ethernet header
 		#next 20 bytes is the ip header
 		#what we want to find is bits 23-26, where u get response code.....important is "3": response error
-		bitsArray = self.toBits(respData)
+		bitsArray = self.hexToBits(respData)
 		print "LENGTH OF RESP IN BITS: ", len(bitsArray)
-		header = []
-		for x in range(0, 32):
-			header.append(bitsArray[x])
-		print "*****HEADER****"
-		print header
-		print "***************"
-		print "header length: ", len(header)
-
 		respCodeArr = []
 		for x in range(28, 32):
 			respCodeArr.append(bitsArray[x])
 
-		print "respCode TEST: ", respCodeArr
+		#print "respCode TEST: ", respCodeArr
 		respCode = ""
 		for x in respCodeArr:
 			respCode += str(x)
 		respCode = int(respCode, 2)
 		print "respCode: ", respCode
+		return respCode
 
-
-
-	#def constructResponse(self):
-
-
-
-	def toBits(self, data):
+	def hexToBits(self, data):
 	    output = []
 	    for c in data:
 	        bits = bin(ord(c))[2:]
@@ -115,7 +109,32 @@ class DNSProxy:
 	        output.extend([int(b) for b in bits])
 	    return output
 		
-	#def createRepsonse(self, )
+	def bitsToHex(self, bits):
+	    result = []
+	    for b in range(len(bits) / 8):
+	        byte = bits[b*8:(b+1)*8]
+	        result.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
+	    return ''.join(result)
+
+	def createResponse(self, respData):
+		bitsArray = self.hexToBits(respData)
+		header = []
+		for x in range(0, 32):
+			header.append(bitsArray[x])
+		for x in range(28, 32):
+			#first fix the response code
+			header[x] = 0
+		headerHex = self.bitsToHex(header)
+
+		myHostname = socket.gethostname()
+		myAddr = socket.gethostbyname(myHostname)
+		print "my ip address is: ", myAddr
+		dotlessAddr = myAddr.split(".")
+		myAddrHex = '{:02X}{:02X}{:02X}{:02X}'.format(*map(int, dotlessAddr))
+		print "myAddrHex: ", myAddrHex 
+		response = headerHex + myAddrHex
+		return response
+
 
 
 
