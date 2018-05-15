@@ -42,10 +42,14 @@ class HttpServer:
 		print "***header***"
 		print headerContent
 		print "************"
+
+		#idk
+		pageContent = self.writeOurFile(requestedFile) #?????
+
 		#print "***fileContent"
 		#print fileContent
 		#print "************"
-		connSocket.send((headerContent + fileContent))
+		connSocket.send((headerContent + fileContent + pageContent))
 		#close when done
 		self.s.close()
 
@@ -74,7 +78,16 @@ class HttpServer:
 		requestedFile = request[request.find(' /')+len(' /'):request.find('HTTP')]
 		return requestedFile
 
-	#def writeOurFile(self, )
+  # idk about this
+	def writeOurFile(self, requestedFile):
+		pageContent = """<!DOCTYPE html> 
+		<html> 
+		<body> 
+		<p> I see that you were looking for """ + whateverurlitis + """, but wouldn't you rather
+		buy that from <a href = "google.com"> google.com </a>? </p> 
+		</body> 
+		</html>"""
+		return pageContent
 
 
 if  __name__ =='__main__':  
