@@ -79,7 +79,7 @@ class HttpServer:
 		return requestedFile
 
   # idk about this
-	def writeOurFile(self, requestedFile):
+	def writeOurFile(self, request):
 		pageContent = """<!DOCTYPE html> 
 		<html> 
 		<body> 
