@@ -70,7 +70,7 @@ class HttpServer:
 			headerContent = "HTTP/1.1 200 OK\r\n" + headerContent
 		else: 
 			headerContent = "HTTP/1.1 404 Not Found\r\n" + headerContent
-			#headerContent = "HTTP/1.1 200 OK\r\n" + headerContent
+			# call writeOurFile when page not found?? what james did 
 		headerContent.encode()
 		return headerContent
 
@@ -80,6 +80,8 @@ class HttpServer:
 
   # idk about this
 	def writeOurFile(self, request):
+
+
 		pageContent = """<!DOCTYPE html> 
 		<html> 
 		<body> 
