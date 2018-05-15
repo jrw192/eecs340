@@ -1,11 +1,11 @@
-import socket, sys, select, Queue
+import socket, sys, select, Queue, binascii
 
 class DNSProxy:
 	def __init__(self):
 		self.port = 53
 		self.upstreamAddr = ('8.8.8.8', 53)
 
-	def dns_proxy(self):
+	def dns_proxy(self, publicIP):
 		sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		sockUDP.bind(("0.0.0.0", self.port))
 	
@@ -41,25 +41,24 @@ class DNSProxy:
 			print "wait for a response from upstream"
 			respData, respAddr = upstreamSockUDP.recvfrom(4096)
 			#print "we got our response data, response length: ", len(respData)
-			if respData:
-				print "*******respData********"
-				print respData
-				print "***********************"
 
-				if self.getResponseCode(respData) is 0:
+                        
+			if respData:           
+				responseCode = self.getResponseCode(respData)
+
+				if responseCode is 0:
 					print "sending data back"
 					sent = sockUDP.sendto(respData, address)
-				elif self.getResponseCode(respData) is 3:
-					response = self.createResponse(respData, data)
-					print "************NEW RESPONSE: ***************"
-					print response
-					print "******************************************"
+				elif responseCode is 3:
+					response = self.createResponse(respData, data, publicIP)
+					#print "************NEW RESPONSE: ***************"
+					#print response
+					#print "******************************************"
 					print "new response length: ", len(response)
 					sent = sockUDP.sendto(response, address)
 			upstreamSockUDP.close()
 
 	def TCP(self, sockTCP):
-
 		connSocket, address = sockTCP.accept()
 		data, __ = connSocket.recvfrom(4096)
 		if data:
@@ -78,6 +77,7 @@ class DNSProxy:
 			if respData:
 				print "sending response data back"
 				connSocket.sendto(respData, address)
+
 			upstreamSockTCP.close()
 
 	def getResponseCode(self, respData):
@@ -99,54 +99,59 @@ class DNSProxy:
 		return respCode
 
 	def hexToBits(self, data):
-	    output = []
-	    for c in data:
-	        bits = bin(ord(c))[2:]
-	        bits = '00000000'[len(bits):] + bits
-	        output.extend([int(b) for b in bits])
-	    return output
+		output = []
+		for c in data:
+			bits = bin(ord(c))[2:]
+			bits = '00000000'[len(bits):] + bits
+			output.extend([int(b) for b in bits])
+		return output
 		
-	def bitsToHex(self, bits):
-	    result = []
-	    for b in range(len(bits) / 8):
-	        byte = bits[b*8:(b+1)*8]
-	        result.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
-	    return ''.join(result)
 
-	def createResponse(self, respData, data):
-		dataBits = self.hexToBits(data)
-		idArr = []
-		for x in range(0, 16):
-			idArr.append(dataBits[x])
-		identification = self.bitsToHex(idArr)
-		numQs = "0001"
-		numAns = "0001"
-		nAuth = "0000"
-		nAdditional = "0000"
+		#convert a decimal integer to hex
+		#decimal 12 will become "0c"
+		#decimal 33 will become "21"
+	def decimalToHexString(self, dec):
+		print dec
+		str = hex(dec).split('x')[-1]      
+		if len(str) == 1:
+			str = "0" + str
+		return str        
 
-		respBits = self.hexToBits(respData)
-		flagsArr = []
-		for x in range(16, 32):
-			flagsArr.append(respBits[x])
-		for x in range(len(flagsArr)-3, len(flagsArr)):
-			flagsArr[x] = 0
-		flags = self.bitsToHex(flagsArr)
+	def createResponse(self, respData, data, publicIP):
+		#import pdb; pdb.set_trace()
+		#dataBits = self.hexToBits(data)
+		identification = respData[:4]
+		numQs = "\x00\x01"
+		numAns = "\x00\x01"
+		nAuth = "\x00\x00"
+		nAdditional = "\x00\x00"
+
+		flags = "\x81\x80"
 
 		header = identification + flags + numQs + numAns + nAuth + nAdditional
-
+		#import pdb; pdb.set_trace()
 		#request header is 12 bytes -> 96 bits, so we just want the rest of it
-		question = dataBits[12:]
+		question = data[12:]
 
 		myHostname = socket.gethostname()
 		myAddr = socket.gethostbyname(myHostname)
-		dotlessAddr = myAddr.split(".")
-		myAddrHex = self.bitsToHex(dotlessAddr)
-		rLength = '0004'
-		TTL = "00000064"
+		#dotlessAddr = myAddr.split(".")
+		#myAddrHex = binascii.hexlify(socket.inet_aton('myAddr'))
+		myAddrHex = "\x12\xbf\x1f\x7c"
+
+		rLength = '\x00\x04'
+		TTL = "\x00\x00\x00\x64"
 
 		response = header + question + TTL + rLength + myAddrHex
+		print "RESPONSE: ", response
 		return response
 
+
 if  __name__ =='__main__':  
+	publicIP = "18.191.31.124"
+	if len(sys.argv) > 1:
+		publicIP = sys.argv[1]    
+	print publicIP
+
 	p = DNSProxy()
-	p.dns_proxy()
+	p.dns_proxy(publicIP)
