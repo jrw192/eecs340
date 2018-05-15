@@ -46,29 +46,24 @@ class HttpServer:
 				#print "************"
 				connSocket.send((headerContent + fileContent))
 				#close when done
+				self.s.close()
 
 			else:
 				print "we made our own page"
-
 				self.writeOurFile(hostName)
-
-				fileContent = ""
-				absFile = str(os.path.abspath("ourFile.html")).strip()
-				print "opening file...."
-				file = open(absFile, "rb")
-				fileContent = file.read()
-				file.close()
 				
 				date = datetime.datetime.now()
 				date = date.strftime("%d/%m/%Y %H:%M:%S")
 				dateResponse = "Date: " + date + "\r\n"
 				typeResponse = "Content-Type: text/html\r\n"
 				headerContent = "HTTP/1.1 200 OK\r\n" + dateResponse + typeResponse
-				print "****HEADER****"
-				print headerContent
-				print "**************"
+
+				file = open("ourFile", "rb")
+				fileContent = file.read()
+				file.close()
+
 				connSocket.send((headerContent + fileContent))
-				print "sent"
+				self.s.close()
 
 
 	def makeHeader(self, requestedFile):
@@ -109,15 +104,15 @@ class HttpServer:
 
 	
 	def writeOurFile(self, hostName):
+		file = open("ourFile", "w")
 		pageContent = """<!DOCTYPE html> 
-<html> 
-	<body> 
+		<html> 
+		<body> 
 		<p> I see that you were looking for """ + hostName + """, but wouldn't you rather
-		go to <a href = "google.com"> google.com </a>? </p> 
-	</body> 
-</html>"""
-		print "pageContent: ", pageContent
-		file= open("ourFile.html","w")
+		buy that from <a href = "google.com"> google.com </a>? </p> 
+		</body> 
+		</html>"""
+		file= open("ourFile","w")
 		file.write(pageContent)
 		file.close()
 
