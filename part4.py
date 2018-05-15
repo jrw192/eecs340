@@ -72,11 +72,11 @@ class DNSProxy:
 				print "upstreamSockTCP failed to connect. error: ", socket.error
 
 			upstreamSockTCP.send(data)
-			respData, respAddr = upstreamSockTCP.recvfrom(4096)
-			print "we got our response data, response length: ", len(respData)
-			if respData:
-				print "sending response data back"
+			while True:
+				respData, respAddr = upstreamSockTCP.recvfrom(4096)
 				connSocket.sendto(respData, address)
+				if len(respData) < 4096:
+					break
 
 			upstreamSockTCP.close()
 
@@ -118,33 +118,64 @@ class DNSProxy:
 		return str        
 
 	def createResponse(self, respData, data, publicIP):
-		#import pdb; pdb.set_trace()
-		#dataBits = self.hexToBits(data)
-		identification = respData[:4]
-		numQs = "\x00\x01"
-		numAns = "\x00\x01"
-		nAuth = "\x00\x00"
-		nAdditional = "\x00\x00"
+		#convert incoming response from string to hex
+		#so if a byte in string is "21", we will get 33 integer value
+		hexRespData = []
+		for i in range(0, len(respData)):
+			hexRespData.append(binascii.hexlify(respData[i]))
+		newheader = []
+		#copy identification field from old header
+		for i in range(0, 12):
+			newheader.append(hexRespData[i])
+		        
+		#change the response code to 0000
+		flag = "00"
+		newheader[2] = flag
+		newheader[3] = flag
 
-		flags = "\x81\x80"
+		#update the answer field to contain 1 answer
+		newheader[6] = "00"
+		newheader[7] = "01"
 
-		header = identification + flags + numQs + numAns + nAuth + nAdditional
-		#import pdb; pdb.set_trace()
-		#request header is 12 bytes -> 96 bits, so we just want the rest of it
-		question = data[12:]
+		#next section is question section
+		#query name section ends with "00", followed by query type and class
+		index = 12  #start after header
+		queryName = ""
+		#question section should be the same as the old response we received
+		#"00" indicates the end
+		while True:
+			if hexRespData[index] != "00":
+				queryName += hexRespData[index]
+			else:
+				break
+			index = index + 1
+		                
+		queryName += "00"   #add "00" ourselves
 
-		myHostname = socket.gethostname()
-		myAddr = socket.gethostbyname(myHostname)
-		#dotlessAddr = myAddr.split(".")
-		#myAddrHex = binascii.hexlify(socket.inet_aton('myAddr'))
-		myAddrHex = "\x12\xbf\x1f\x7c"
+		#class type 2 bytes, same as old response
+		queryType = "0001"
 
-		rLength = '\x00\x04'
-		TTL = "\x00\x00\x00\x64"
+		#query class 2 bytes, same as old response
+		queryClass = "0001"
 
-		response = header + question + TTL + rLength + myAddrHex
-		print "RESPONSE: ", response
-		return response
+		#time to live, 4 bytes, just set to some value
+		ttl = "00000064"   
+
+		#data length, 2 bytes
+		dataLength = "0004"   #ip 4 address  xxx.xxx.xxx.xxx will take 4 bytes
+
+		#put my host ip as answer
+		dotlessAddr = publicIP.split(".")
+		print "dotlessAddr: ", dotlessAddr
+		address = []
+		for i in range(0, len(dotlessAddr)):
+			thisPart = dotlessAddr[i]       
+			address.append(self.decimalToHexString(int(thisPart)))
+		querySection = queryName + queryType + queryClass
+		answerSection = "c00c" + "".join(queryType) + "".join(queryClass) + ttl + dataLength + "".join(address)
+		        
+		strResponse = "".join(newheader) + querySection + answerSection
+		return strResponse.decode('hex')
 
 
 if  __name__ =='__main__':  

@@ -61,11 +61,11 @@ class DNSProxy:
 				print "upstreamSockTCP failed to connect. error: ", socket.error
 
 			upstreamSockTCP.send(data)
-			respData, respAddr = upstreamSockTCP.recvfrom(4096)
-			print "TCP we got our response data, response length: ", len(respData)
-			if respData:
-				print "sending response data back"
+			while True:
+				respData, respAddr = upstreamSockTCP.recvfrom(4096)
 				connSocket.sendto(respData, address)
+				if len(respData) < 4096:
+					break
 			upstreamSockTCP.close()
 
 
